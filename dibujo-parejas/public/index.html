@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dibujo en Parejas</title>
+  <style>
+    canvas { border: 2px solid black; display: block; margin-top: 10px; }
+    #controls, #timerDisplay { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>🎨 Juego de Dibujo en Parejas</h2>
+
+  <div id="login">
+    <input id="username" placeholder="Nombre de usuario">
+    <button onclick="login()">Entrar</button>
+  </div>
+
+  <div id="game" style="display:none;">
+    <div id="controls">
+      <button onclick="startTimer(120)">2 minutos</button>
+      <button onclick="startTimer(300)">5 minutos</button>
+      <button onclick="clearCanvas()">Limpiar</button>
+      <span id="timerDisplay"></span>
+    </div>
+    <canvas id="canvas" width="800" height="500"></canvas>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket;
+    let painting = false;
+    let canvas, ctx;
+
+    function login() {
+      const username = document.getElementById('username').value;
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          initSocket(data.token);
+        } else {
+          alert('Error al iniciar sesión');
+        }
+      });
+    }
+
+    function initSocket(token) {
+      socket = io({
+        auth: { token }
+      });
+
+      socket.on('connect', () => {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('game').style.display = 'block';
+        setupCanvas();
+      });
+
+      socket.on('draw', ({ x, y }) => draw(x, y, false));
+      socket.on('canvas-cleared', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+
+      socket.on('timer-started', ({ duration }) => {
+        let timeLeft = duration;
+        const timer = setInterval(() => {
+          document.getElementById('timerDisplay').innerText = `⏳ Tiempo restante: ${timeLeft}s`;
+          if (--timeLeft < 0) {
+            clearInterval(timer);
+            document.getElementById('timerDisplay').innerText = '⏰ Tiempo terminado';
+            disableDrawing();
+          }
+        }, 1000);
+      });
+
+      socket.on('timer-ended', () => {
+        disableDrawing();
+        document.getElementById('timerDisplay').innerText = '⏰ Tiempo terminado';
+      });
+    }
+
+    function setupCanvas() {
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      canvas.addEventListener('mousedown', () => painting = true);
+      canvas.addEventListener('mouseup', () => {
+        painting = false;
+        ctx.beginPath();
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!painting) return;
+        const x = e.offsetX;
+        const y = e.offsetY;
+        draw(x, y, true);
+        socket.emit('draw', { x, y });
+      });
+    }
+
+    function draw(x, y, local) {
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'black';
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }
+
+    function startTimer(duration) {
+      socket.emit('start-timer', { duration });
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      socket.emit('clear-canvas');
+    }
+
+    function disableDrawing() {
+      canvas.removeEventListener('mousedown', () => painting = true);
+      canvas.removeEventListener('mouseup', () => painting = false);
+      canvas.removeEventListener('mousemove', () => {});
+    }
+  </script>
+</body>
+</html>
