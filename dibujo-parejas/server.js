@@ -16,7 +16,7 @@ const io = new Server(server, {
 });
 
 
-// pastel y pollo
+// pastel y pollo con manzana y jugo verde
 
 const PORT = 3000;
 const JWT_SECRET = 'clave_super_secreta_dibujo';
