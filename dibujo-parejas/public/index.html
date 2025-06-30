@@ -24,6 +24,7 @@
         --brush-pink: #E91E63;
         --brush-black: #000000;
         --brush-white: #FFFFFF; /* Para "borrar" */
+        --eraser-color: var(--input-bg); /* El borrador usa el color de fondo del canvas */
     }
 
     body {
@@ -50,7 +51,7 @@
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
       text-align: center;
       width: 100%;
-      max-width: 850px; /* Aumentado para acomodar los controles de color */
+      max-width: 850px;
       box-sizing: border-box;
       margin-bottom: 20px;
     }
@@ -96,6 +97,20 @@
     button[onclick="clearCanvas"]:hover {
         background-color: #C0392B;
     }
+    /* Estilos para los botones de deshacer y rehacer (flechas) */
+    #undoButton, #redoButton {
+        background-color: #7F8C8D; /* Gris suave */
+        font-size: 1.5em; /* Hacer las flechas más grandes */
+        padding: 8px 15px; /* Ajustar el padding */
+    }
+    #undoButton:hover, #redoButton:hover {
+        background-color: #95A5A6; /* Gris más claro al pasar el ratón */
+    }
+    #undoButton:disabled, #redoButton:disabled {
+        opacity: 0.5; /* Opacidad para indicar que está deshabilitado */
+        cursor: not-allowed; /* Cursor de "no permitido" */
+    }
+
 
     /* Estilos para los botones de color del pincel */
     .color-button {
@@ -121,6 +136,35 @@
         box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.4);
     }
 
+    /* --- ESTILOS ESPECÍFICOS DEL BORRADOR --- */
+    .color-button.eraser-button {
+        background-color: var(--eraser-color);
+        border: 2px solid var(--text-dark);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .color-button.eraser-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, transparent 45%, var(--border-color) 45%, var(--border-color) 55%, transparent 55%);
+        opacity: 0.8;
+    }
+
+    .color-button.eraser-button:hover::before {
+        background: linear-gradient(45deg, transparent 45%, var(--primary-color) 45%, var(--primary-color) 55%, transparent 55%);
+    }
+
+    .color-button.eraser-button.selected {
+        border: 2px solid var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.4);
+    }
+    /* --- FIN ESTILOS BORRADOR --- */
+
     #colorPicker {
         margin-top: 15px;
         margin-bottom: 10px;
@@ -130,13 +174,20 @@
         gap: 8px;
     }
 
-    canvas { border: 2px solid var(--primary-color); display: block; margin-top: 10px; background-color: var(--input-bg); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); border-radius: 5px;}
+    canvas { 
+        border: 2px solid var(--primary-color); 
+        display: block; 
+        margin-top: 10px; 
+        background-color: var(--input-bg); 
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); 
+        border-radius: 5px;
+    }
     #controls, #timerDisplay { margin-top: 10px; }
     #timerDisplay {
         font-size: 1.1rem;
         font-weight: bold;
         color: var(--text-dark);
-        background-color: #ECF0F1;
+        background-color: var(--background-light);
         padding: 8px 15px;
         border-radius: 5px;
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
@@ -156,11 +207,11 @@
       <button onclick="startTimer(120)">2 minutos</button>
       <button onclick="startTimer(300)">5 minutos</button>
       <button onclick="clearCanvas()">Limpiar</button>
-      <span id="timerDisplay"></span>
+      <button id="undoButton" onclick="undoLastStroke()">&#8630;</button> <button id="redoButton" onclick="redoLastStroke()" disabled>&#8631;</button> <span id="timerDisplay"></span>
     </div>
     
     <div id="colorPicker">
-        <div class="color-button selected" style="background-color: var(--brush-black);" onclick="selectBrushColor(this, 'var(--brush-black)')"></div>
+        <div class="color-button" style="background-color: var(--brush-black);" onclick="selectBrushColor(this, 'var(--brush-black)')"></div>
         <div class="color-button" style="background-color: var(--brush-blue);" onclick="selectBrushColor(this, 'var(--brush-blue)')"></div>
         <div class="color-button" style="background-color: var(--brush-green);" onclick="selectBrushColor(this, 'var(--brush-green)')"></div>
         <div class="color-button" style="background-color: var(--brush-yellow);" onclick="selectBrushColor(this, 'var(--brush-yellow)')"></div>
@@ -168,7 +219,7 @@
         <div class="color-button" style="background-color: var(--brush-red);" onclick="selectBrushColor(this, 'var(--brush-red)')"></div>
         <div class="color-button" style="background-color: var(--brush-purple);" onclick="selectBrushColor(this, 'var(--brush-purple)')"></div>
         <div class="color-button" style="background-color: var(--brush-pink);" onclick="selectBrushColor(this, 'var(--brush-pink)')"></div>
-        <div class="color-button" style="background-color: var(--brush-white);" onclick="selectBrushColor(this, 'var(--brush-white)')"></div>
+        <div class="color-button eraser-button" onclick="selectEraser()"></div>
     </div>
     <canvas id="canvas" width="800" height="500"></canvas>
   </div>
@@ -178,7 +229,14 @@
     let socket;
     let painting = false;
     let canvas, ctx;
-    let currentBrushColor = 'black'; // Variable para el color del pincel local
+    let currentBrushColor = 'black';
+    let currentBrushSize = 2;
+
+    // --- VARIABLES PARA DESHACER Y REHACER ---
+    let canvasHistory = []; // Array para guardar las imágenes del canvas
+    let historyPointer = -1; // Puntero a la posición actual en el historial
+    const MAX_HISTORY_STEPS = 50; // Límite de pasos para evitar sobrecargar la memoria
+    // --- FIN NUEVAS VARIABLES ---
 
     function login() {
       const username = document.getElementById('username').value;
@@ -206,25 +264,69 @@
         document.getElementById('login').style.display = 'none';
         document.getElementById('game').style.display = 'block';
         setupCanvas();
-        // Inicializar el currentBrushColor basado en el botón seleccionado por defecto
+        
+        // Inicializar el canvas history con el estado blanco inicial
+        saveCanvasState();
+        updateUndoRedoButtons(); // Actualiza el estado de los botones al iniciar
+
         const initialColorButton = document.querySelector('.color-button.selected');
         if (initialColorButton) {
-            // Extrae el nombre de la variable CSS del onclick
-            const cssVar = initialColorButton.getAttribute('onclick').match(/'(var\(--brush-[a-z]+\))'/)[1];
-            currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVar.replace('var(', '').replace(')', ''));
+            const cssVar = initialColorButton.getAttribute('onclick').match(/'(var\(--brush-[a-z]+\))'/);
+            if (cssVar && cssVar[1]) { // Asegurarse de que la expresión regular encuentre algo
+                currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVar[1].replace('var(', '').replace(')', ''));
+            }
+            ctx.strokeStyle = currentBrushColor; // Establece el color inicial del contexto
+            ctx.lineWidth = currentBrushSize; // Establece el tamaño inicial del contexto
+        } else {
+            // Si no hay un botón seleccionado por defecto (e.g., al cargar por primera vez),
+            // asegúrate de que el negro sea el color por defecto y se seleccione su botón.
+            const defaultBlackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
+            if(defaultBlackButton) {
+                selectBrushColor(defaultBlackButton, 'var(--brush-black)');
+            }
         }
       });
 
-      socket.on('draw', ({ x, y }) => draw(x, y, false));
-      socket.on('canvas-cleared', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+      // Recibe datos completos de dibujo (x, y, color, lineWidth)
+      socket.on('draw', ({ x, y, color, lineWidth }) => draw(x, y, color, lineWidth, false));
+      
+      // Manejo de eventos de deshacer y limpiar remotamente
+      socket.on('canvas-cleared', () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Reiniciar historial al limpiar
+          canvasHistory = [];
+          historyPointer = -1;
+          saveCanvasState(); // Guardar el estado vacío
+          updateUndoRedoButtons(); // Actualizar botones
+      });
+
+      // --- RECIBIR EVENTO DE DESHACER REMOTO ---
+      socket.on('undo-stroke', (lastState) => {
+        if (lastState) {
+            restoreCanvasState(lastState);
+        } else {
+            // Si no hay estado previo (canvas totalmente vacío)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--input-bg');
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        // No manipulamos el historial localmente aquí para evitar conflictos con el historial del propio usuario.
+        // Solo restauramos la imagen.
+      });
+
+      // --- RECIBIR EVENTO DE REHACER REMOTO ---
+      socket.on('redo-stroke', (nextState) => {
+        if (nextState) {
+            restoreCanvasState(nextState);
+        }
+        // Similar al undo remoto, solo restauramos la imagen.
+      });
 
       socket.on('timer-started', ({ duration }) => {
         let timeLeft = duration;
         const timerDisplay = document.getElementById('timerDisplay');
-        // Usar getComputedStyle para obtener el valor de la variable CSS
         timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
         
-        // Limpiar cualquier temporizador previo para evitar duplicados
         if (window.currentTimerInterval) {
             clearInterval(window.currentTimerInterval);
         }
@@ -234,10 +336,9 @@
           if (--timeLeft < 0) {
             clearInterval(window.currentTimerInterval);
             document.getElementById('timerDisplay').innerText = '⏰ Tiempo terminado';
-            // Volver al color de texto normal al finalizar
             timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
             disableDrawing();
-          } else if (timeLeft <= 10) { // Cambiar a rojo en los últimos 10 segundos
+          } else if (timeLeft <= 10) {
              timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
           }
         }, 1000);
@@ -254,71 +355,54 @@
       canvas = document.getElementById('canvas');
       ctx = canvas.getContext('2d');
 
-      ctx.lineWidth = 2;
+      ctx.lineWidth = currentBrushSize;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = currentBrushColor; // Establecer el color inicial del pincel para el contexto
+      ctx.strokeStyle = currentBrushColor;
+      
+      // Dibujar un fondo blanco explícitamente para asegurar que el borrador funcione bien
+      // y que la primera captura de historial sea correcta.
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--input-bg');
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      canvas.addEventListener('mousedown', startDrawing); // Cambiado para controlar 'painting' y primer punto
+      canvas.addEventListener('mousedown', startDrawing);
       canvas.addEventListener('mouseup', stopDrawing);
-      canvas.addEventListener('mouseout', stopDrawing); // Detener si el ratón sale del canvas
+      canvas.addEventListener('mouseout', stopDrawing);
       canvas.addEventListener('mousemove', drawOnCanvas);
     }
 
     function startDrawing(e) {
         painting = true;
-        draw(e.offsetX, e.offsetY, true); // Dibuja el primer punto
+        // Mover el pincel a la posición inicial sin dibujar una línea
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
     }
 
     function stopDrawing() {
         painting = false;
-        ctx.beginPath(); // Reiniciar el camino para nuevos trazos
+        ctx.beginPath(); // Finaliza el path actual para la próxima línea
+        saveCanvasState(); // Guarda el estado del canvas después de cada trazo completo
+        updateUndoRedoButtons(); // Actualiza el estado de los botones
     }
 
     function drawOnCanvas(e) {
         if (!painting) return;
         const x = e.offsetX;
         const y = e.offsetY;
-        draw(x, y, true);
-        // NOTA: Tu código original emitía solo x, y. 
-        // Para que el color se comparta, deberías enviar el color aquí también:
-        // socket.emit('draw', { x, y, color: currentBrushColor }); 
-        // Si no cambias esto, los demás verán tus trazos en negro.
-        socket.emit('draw', { x, y }); 
+        
+        draw(x, y, currentBrushColor, currentBrushSize, true); // Dibuja localmente
+        socket.emit('draw', { x, y, color: currentBrushColor, lineWidth: currentBrushSize }); // Envía al servidor
     }
 
-    function draw(x, y, local) {
-      ctx.lineWidth = 2;
+    function draw(x, y, incomingColor, incomingLineWidth, local) {
+      ctx.lineWidth = local ? currentBrushSize : (incomingLineWidth || 2);
       ctx.lineCap = 'round';
-      ctx.strokeStyle = local ? currentBrushColor : 'black'; // Usar currentBrushColor si es local, si no siempre negro
-
+      ctx.strokeStyle = local ? currentBrushColor : (incomingColor || 'black');
+      
       ctx.lineTo(x, y);
       ctx.stroke();
-      ctx.beginPath();
+      ctx.beginPath(); // Empieza un nuevo camino desde la última posición del cursor
       ctx.moveTo(x, y);
     }
-
-    // --- NUEVA FUNCIÓN PARA SELECCIONAR EL COLOR DEL PINCEL ---
-    let lastSelectedColorButton = null; // Mantener un registro del último botón seleccionado
-
-    function selectBrushColor(element, cssVariable) {
-        // Deseleccionar el botón anterior
-        if (lastSelectedColorButton) {
-            lastSelectedColorButton.classList.remove('selected');
-        }
-
-        // Seleccionar el nuevo botón
-        element.classList.add('selected');
-        lastSelectedColorButton = element;
-
-        // Obtener el valor real del color de la variable CSS
-        currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVariable.replace('var(', '').replace(')', ''));
-        
-        // Actualizar el color del trazo del contexto del canvas
-        if (ctx) {
-            ctx.strokeStyle = currentBrushColor;
-        }
-    }
-    // --- FIN NUEVA FUNCIÓN ---
 
     function startTimer(duration) {
       socket.emit('start-timer', { duration });
@@ -327,17 +411,129 @@
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       socket.emit('clear-canvas');
+      // Reiniciar historial al limpiar
+      canvasHistory = [];
+      historyPointer = -1;
+      saveCanvasState(); // Guardar el estado vacío después de limpiar
+      updateUndoRedoButtons(); // Actualizar botones
     }
 
     function disableDrawing() {
-      canvas.removeEventListener('mousedown', startDrawing);
-      canvas.removeEventListener('mouseup', stopDrawing);
-      canvas.removeEventListener('mousemove', drawOnCanvas);
-      // Asegurar que también se remueva el listener de mouseout
-      canvas.removeEventListener('mouseout', stopDrawing);
+        canvas.removeEventListener('mousedown', startDrawing);
+        canvas.removeEventListener('mouseup', stopDrawing);
+        canvas.removeEventListener('mouseout', stopDrawing);
+        canvas.removeEventListener('mousemove', drawOnCanvas);
     }
 
-    // Inicializar el botón de color negro como seleccionado al cargar
+    // --- FUNCIONES PARA DESHACER Y REHACER ---
+
+    // Guarda el estado actual del canvas en el historial
+    function saveCanvasState() {
+        // Eliminar los estados "adelante" si se deshizo y luego se dibujó algo nuevo
+        if (historyPointer < canvasHistory.length - 1) {
+            canvasHistory = canvasHistory.slice(0, historyPointer + 1);
+        }
+
+        const dataURL = canvas.toDataURL();
+        if (canvasHistory.length >= MAX_HISTORY_STEPS) {
+            canvasHistory.shift(); // Eliminar el estado más antiguo si el historial es muy grande
+        }
+        canvasHistory.push(dataURL);
+        historyPointer = canvasHistory.length - 1;
+    }
+
+    // Retrocede al estado anterior del canvas
+    function undoLastStroke() {
+        if (historyPointer > 0) {
+            historyPointer--;
+            const lastState = canvasHistory[historyPointer];
+            restoreCanvasState(lastState);
+            socket.emit('undo-stroke', lastState); // Notificar al servidor del undo
+        } else if (historyPointer === 0) {
+            // Si estamos en el primer estado (lienzo en blanco), al deshacer lo limpiamos
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Redibujar el fondo blanco para simular un lienzo en blanco
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--input-bg');
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            historyPointer = -1; // Marcar que no hay historial previo
+            socket.emit('undo-stroke', null); // Notificar que se limpió completamente
+        }
+        updateUndoRedoButtons(); // Actualizar botones después del undo
+    }
+
+    // Avanza al estado siguiente del canvas (rehacer)
+    function redoLastStroke() {
+        if (historyPointer < canvasHistory.length - 1) {
+            historyPointer++;
+            const nextState = canvasHistory[historyPointer];
+            restoreCanvasState(nextState);
+            socket.emit('redo-stroke', nextState); // Notificar al servidor del redo
+        }
+        updateUndoRedoButtons(); // Actualizar botones después del redo
+    }
+
+    // Restaura el canvas a un estado dado (imagen Data URL)
+    function restoreCanvasState(dataURL) {
+        const img = new Image();
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = dataURL;
+    }
+
+    // Actualiza el estado de los botones Deshacer/Rehacer
+    function updateUndoRedoButtons() {
+        const undoButton = document.getElementById('undoButton');
+        const redoButton = document.getElementById('redoButton');
+
+        if (undoButton) {
+            undoButton.disabled = historyPointer <= 0;
+        }
+        if (redoButton) {
+            redoButton.disabled = historyPointer >= canvasHistory.length - 1;
+        }
+    }
+    // --- FIN FUNCIONES PARA DESHACER Y REHACER ---
+
+    // --- FUNCIONES PARA SELECCIONAR COLOR Y BORRADOR ---
+    let lastSelectedToolButton = null;
+
+    function selectToolButton(element) {
+        if (lastSelectedToolButton) {
+            lastSelectedToolButton.classList.remove('selected');
+        }
+        element.classList.add('selected');
+        lastSelectedToolButton = element;
+    }
+
+    function selectBrushColor(element, cssVariable) {
+        selectToolButton(element);
+
+        currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVariable.replace('var(', '').replace(')', ''));
+        currentBrushSize = 2; // Restaurar tamaño de pincel normal al seleccionar color
+        
+        if (ctx) {
+            ctx.strokeStyle = currentBrushColor;
+            ctx.lineWidth = currentBrushSize;
+        }
+    }
+
+    function selectEraser() {
+        const eraserButton = document.querySelector('.color-button.eraser-button');
+        selectToolButton(eraserButton);
+
+        currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue('--eraser-color');
+        currentBrushSize = 20; // Tamaño más grande para el borrador
+        
+        if (ctx) {
+            ctx.strokeStyle = currentBrushColor;
+            ctx.lineWidth = currentBrushSize;
+        }
+    }
+    // --- FIN FUNCIONES DE SELECCIÓN ---
+
+    // Inicializar el botón de color negro como seleccionado al cargar la página
     document.addEventListener('DOMContentLoaded', () => {
         const blackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
         if (blackButton) {
