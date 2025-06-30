@@ -1,14 +1,26 @@
-// main.js
+// main.js (index.js)
 
 let socket;
 let painting = false;
 let canvas, ctx;
-let currentBrushColor = 'black';
-let currentBrushSize = 2;
+let currentBrushColor = 'black'; // Color inicial del pincel
+let currentBrushSize = 6; // Grosor inicial del pincel
 
+// --- Variables para deshacer y rehacer ---
 let canvasHistory = [];
 let historyPointer = -1;
 const MAX_HISTORY_STEPS = 50;
+// --- Fin Variables para deshacer y rehacer ---
+
+// --- Variables para manejar la selección visual de los botones ---
+let lastSelectedToolButton = null; // Para colores y borrador
+let lastSelectedSizeButton = null; // Para grosores
+// --- Fin Variables para manejar la selección visual de los botones ---
+
+// --- Variable para rastrear la herramienta activa (pincel o borrador) ---
+let activeTool = 'brush'; // Puede ser 'brush' o 'eraser'
+// --- Fin Variable para rastrear la herramienta activa ---
+
 
 function login() {
   const username = document.getElementById('username').value;
@@ -37,26 +49,28 @@ function initSocket(token) {
     saveCanvasState();
     updateUndoRedoButtons();
 
-    const initialColorButton = document.querySelector('.color-button.selected');
-    if (initialColorButton) {
-      const cssVar = initialColorButton.getAttribute('onclick').match(/'(var\(--brush-[a-z]+\))'/);
-      if (cssVar && cssVar[1]) {
-        currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVar[1].replace('var(', '').replace(')', ''));
-      }
-      ctx.strokeStyle = currentBrushColor;
-      ctx.lineWidth = currentBrushSize;
-    } else {
-      const defaultBlackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
-      if (defaultBlackButton) {
-        selectBrushColor(defaultBlackButton, 'var(--brush-black)');
-      }
+    // --- Inicialización de color y grosor al cargar ---
+    // Inicializa el color (ej. negro) y lo marca como seleccionado
+    const defaultBlackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
+    if (defaultBlackButton) {
+      selectBrushColor(defaultBlackButton, 'var(--brush-black)');
     }
+    // Inicializa el grosor (ej. 6) y lo marca como seleccionado
+    const defaultSizeButton = document.querySelector('.size-button[data-size="6"]');
+    if (defaultSizeButton) {
+      selectBrushSize(defaultSizeButton, 6); // Establece el tamaño inicial
+    }
+    // --- Fin Inicialización ---
   });
 
   socket.on('draw', ({ x, y, color, lineWidth }) => draw(x, y, color, lineWidth, false));
 
   socket.on('canvas-cleared', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Redibujar el fondo blanco para simular un lienzo en blanco (importante para el borrador)
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--input-bg');
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     canvasHistory = [];
     historyPointer = -1;
     saveCanvasState();
@@ -84,7 +98,6 @@ function initSocket(token) {
     let timeLeft = duration;
     timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
 
-    // Mostrar inmediatamente
     timerDisplay.innerText = `⏳ Tiempo restante: ${timeLeft}s`;
 
     if (window.currentTimerInterval) {
@@ -151,7 +164,9 @@ function drawOnCanvas(e) {
   if (!painting) return;
   const x = e.offsetX;
   const y = e.offsetY;
-  draw(x, y, currentBrushColor, currentBrushSize, true);
+
+  // Usa currentBrushColor y currentBrushSize que ya están configuradas por selectBrushColor/selectEraser/selectBrushSize
+  draw(x, y, currentBrushColor, currentBrushSize, true); 
   socket.emit('draw', { x, y, color: currentBrushColor, lineWidth: currentBrushSize });
 }
 
@@ -172,6 +187,10 @@ function startTimer(duration) {
 
 function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Redibujar el fondo blanco para simular un lienzo en blanco
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--input-bg');
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   socket.emit('clear-canvas');
   canvasHistory = [];
   historyPointer = -1;
@@ -244,9 +263,9 @@ function updateUndoRedoButtons() {
   if (redoButton) redoButton.disabled = historyPointer >= canvasHistory.length - 1;
 }
 
-// --- Herramientas (Color y Borrador) ---
-let lastSelectedToolButton = null;
+// --- Herramientas (Color, Borrador y Grosor) ---
 
+// Función auxiliar para manejar la clase 'selected' en los botones de herramienta (colores y borrador)
 function selectToolButton(element) {
   if (lastSelectedToolButton) {
     lastSelectedToolButton.classList.remove('selected');
@@ -255,31 +274,69 @@ function selectToolButton(element) {
   lastSelectedToolButton = element;
 }
 
+// Función auxiliar para manejar la clase 'selected' en los botones de grosor
+function selectSizeButton(element) {
+  if (lastSelectedSizeButton) {
+    lastSelectedSizeButton.classList.remove('selected');
+  }
+  element.classList.add('selected');
+  lastSelectedSizeButton = element;
+}
+
 function selectBrushColor(element, cssVariable) {
-  selectToolButton(element);
+  selectToolButton(element); // Marca el botón de color como seleccionado
+  activeTool = 'brush'; // Establece la herramienta activa como 'brush'
+
   currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVariable.replace('var(', '').replace(')', ''));
-  currentBrushSize = 2;
+  
+  // Al cambiar de color, asegúrate de que el grosor actual se aplique.
+  // No resetear currentBrushSize aquí para mantener el grosor seleccionado.
   if (ctx) {
     ctx.strokeStyle = currentBrushColor;
     ctx.lineWidth = currentBrushSize;
   }
 }
+
+// Función para seleccionar el grosor del pincel o borrador
+function selectBrushSize(element, size) {
+  selectSizeButton(element); // Marca el botón de grosor como seleccionado
+  currentBrushSize = size; // Establece el tamaño de pincel o borrador
+
+  // Si la herramienta activa es el borrador, establece su color.
+  // Si no, usa el color actual del pincel.
+  if (activeTool === 'eraser') {
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--eraser-color');
+  } else {
+    ctx.strokeStyle = currentBrushColor;
+  }
+  ctx.lineWidth = currentBrushSize; // Aplica el nuevo grosor
+}
+
 
 function selectEraser() {
   const eraserButton = document.querySelector('.color-button.eraser-button');
-  selectToolButton(eraserButton);
+  selectToolButton(eraserButton); // Marca el borrador como seleccionado
+  activeTool = 'eraser'; // Establece la herramienta activa como 'eraser'
+
   currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue('--eraser-color');
-  currentBrushSize = 20;
-  if (ctx) {
-    ctx.strokeStyle = currentBrushColor;
-    ctx.lineWidth = currentBrushSize;
+  // currentBrushSize ya se actualiza a través de selectBrushSize, 
+  // así que al seleccionar el borrador, usa el último grosor elegido o un predeterminado si no se ha elegido.
+  
+  // Opcional: Re-seleccionar un grosor por defecto para el borrador si no hay uno activo.
+  // Por ejemplo, puedes querer que el borrador empiece siempre en un grosor mediano si el usuario no ha seleccionado uno.
+  if (!lastSelectedSizeButton) {
+      const defaultEraserSizeButton = document.querySelector('.size-button[data-size="16"]'); // Un buen tamaño predeterminado para el borrador
+      if (defaultEraserSizeButton) {
+          selectBrushSize(defaultEraserSizeButton, 16);
+      }
+  } else {
+      // Si ya hay un grosor seleccionado, simplemente aplica el color del borrador con ese grosor.
+      if (ctx) {
+          ctx.strokeStyle = currentBrushColor; // El color del borrador
+          ctx.lineWidth = currentBrushSize; // El último grosor seleccionado
+      }
   }
 }
 
-// Seleccionar color negro al cargar la página
-document.addEventListener('DOMContentLoaded', () => {
-  const blackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
-  if (blackButton) {
-    selectBrushColor(blackButton, 'var(--brush-black)');
-  }
-});
+// La inicialización inicial de color y grosor se maneja en initSocket
+// document.addEventListener('DOMContentLoaded', () => { ... });

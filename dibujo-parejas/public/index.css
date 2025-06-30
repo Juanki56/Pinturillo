@@ -1,14 +1,15 @@
 /* --- PALETAS DE COLORES --- */
 :root {
-    --primary-color: #2C3E50;
-    --accent-color: #1ABC9C;
-    --background-light: #ECF0F1;
-    --text-dark: #34495E;
-    --success-color: #27AE60;
-    --error-color: #E74C3C;
-    --border-color: #BDC3C7;
-    --input-bg: #FFFFFF;
+    --primary-color: #2C3E50;       /* Midnight Blue */
+    --accent-color: #1ABC9C;        /* Turquoise */
+    --background-light: #ECF0F1;    /* Clouds */
+    --text-dark: #34495E;           /* Wet Asphalt */
+    --success-color: #27AE60;       /* Nephritis */
+    --error-color: #E74C3C;         /* Alizarin */
+    --border-color: #BDC3C7;        /* Silver */
+    --input-bg: #FFFFFF;            /* Blanco */
 
+    /* Variables para colores del pincel (Paleta "Vibrante y Creativa") */
     --brush-blue: #4FC3F7;
     --brush-green: #2ECC71;
     --brush-yellow: #FFC107;
@@ -150,7 +151,7 @@ button[onclick="clearCanvas"]:hover {
     box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.4);
 }
 
-/* --- PICKER Y CANVAS --- */
+/* --- PICKER DE COLOR Y CANVAS --- */
 #colorPicker {
     margin-top: 15px;
     margin-bottom: 10px;
@@ -159,6 +160,7 @@ button[onclick="clearCanvas"]:hover {
     flex-wrap: wrap;
     gap: 8px;
 }
+
 canvas {
     border: 2px solid var(--primary-color);
     display: block;
@@ -167,6 +169,7 @@ canvas {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     border-radius: 5px;
 }
+
 #controls, #timerDisplay {
     margin-top: 10px;
 }
@@ -178,4 +181,64 @@ canvas {
     padding: 8px 15px;
     border-radius: 5px;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* --- GROSORES DE PINCEL --- */
+#brushSizePicker {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Centra verticalmente los elementos */
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.size-button {
+    background-color: var(--primary-color); /* Un color sólido para el botón */
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex; /* Usar flexbox para centrar el círculo interno */
+    justify-content: center;
+    align-items: center;
+    border: 2px solid var(--border-color);
+    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+/* Tamaños de los botones de grosor para que visualmente representen el grosor */
+.size-button[data-size="24"] { width: 36px; height: 36px; }
+.size-button[data-size="16"] { width: 30px; height: 30px; }
+.size-button[data-size="10"] { width: 24px; height: 24px; }
+.size-button[data-size="6"] { width: 18px; height: 18px; }
+.size-button[data-size="3"] { width: 12px; height: 12px; }
+.size-button[data-size="1"] { width: 8px; height: 8px; }
+
+
+.size-button::after {
+    content: '';
+    display: block;
+    background-color: white; /* Círculo blanco para representar el pincel */
+    border-radius: 50%;
+}
+
+/* Tamaños de los círculos internos para que visualmente representen el grosor */
+.size-button[data-size="24"]::after { width: 24px; height: 24px; }
+.size-button[data-size="16"]::after { width: 16px; height: 16px; }
+.size-button[data-size="10"]::after { width: 10px; height: 10px; }
+.size-button[data-size="6"]::after { width: 6px; height: 6px; }
+.size-button[data-size="3"]::after { width: 3px; height: 3px; }
+.size-button[data-size="1"]::after { width: 1px; height: 1px; }
+
+
+.size-button:hover {
+    transform: scale(1.1);
+    border-color: var(--primary-color);
+}
+
+/* Estilo para el grosor de pincel seleccionado */
+.size-button.selected {
+    border: 2px solid var(--primary-color);
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.4);
+    background-color: var(--accent-color); /* Cambia el color del fondo del botón al ser seleccionado */
 }

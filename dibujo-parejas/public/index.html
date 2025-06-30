@@ -3,7 +3,7 @@
 <head>
   <title>Dibujo en Parejas</title>
   
-   <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="index.css">
    
 </head>
 <body>
@@ -19,7 +19,9 @@
       <button onclick="startTimer(120)">2 minutos</button>
       <button onclick="startTimer(300)">5 minutos</button>
       <button onclick="clearCanvas()">Limpiar</button>
-      <button id="undoButton" onclick="undoLastStroke()">&#8630;</button> <button id="redoButton" onclick="redoLastStroke()" disabled>&#8631;</button> <span id="timerDisplay"></span>
+      <button id="undoButton" onclick="undoLastStroke()">&#8630;</button>
+      <button id="redoButton" onclick="redoLastStroke()" disabled>&#8631;</button>
+      <span id="timerDisplay"></span>
     </div>
     
     <div id="colorPicker">
@@ -33,12 +35,23 @@
         <div class="color-button" style="background-color: var(--brush-pink);" onclick="selectBrushColor(this, 'var(--brush-pink)')"></div>
         <div class="color-button eraser-button" onclick="selectEraser()"></div>
     </div>
+
+    <!-- Controles de selección de grosor del pincel -->
+    <div id="brushSizePicker">
+        <span style="font-weight: bold; margin-right: 10px;">Grosor:</span>
+        <div class="size-button" data-size="24" onclick="selectBrushSize(this, 24)"></div>
+        <div class="size-button" data-size="16" onclick="selectBrushSize(this, 16)"></div>
+        <div class="size-button" data-size="10" onclick="selectBrushSize(this, 10)"></div>
+        <div class="size-button" data-size="6" onclick="selectBrushSize(this, 6)"></div>
+        <div class="size-button" data-size="3" onclick="selectBrushSize(this, 3)"></div>
+        <div class="size-button" data-size="1" onclick="selectBrushSize(this, 1)"></div>
+    </div>
+    <!-- FIN NUEVA SECCIÓN -->
+
     <canvas id="canvas" width="800" height="500"></canvas>
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="index.js">
-   
-  </script>
+  <script src="index.js"></script>
 </body>
 </html>
