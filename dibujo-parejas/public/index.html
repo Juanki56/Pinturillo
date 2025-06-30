@@ -3,8 +3,144 @@
 <head>
   <title>Dibujo en Parejas</title>
   <style>
-    canvas { border: 2px solid black; display: block; margin-top: 10px; }
+    /* Variables de colores: Paleta "Moderna y Confiable" (para UI general) */
+    :root {
+        --primary-color: #2C3E50;       /* Midnight Blue */
+        --accent-color: #1ABC9C;        /* Turquoise */
+        --background-light: #ECF0F1;    /* Clouds */
+        --text-dark: #34495E;           /* Wet Asphalt */
+        --success-color: #27AE60;       /* Nephritis */
+        --error-color: #E74C3C;         /* Alizarin */
+        --border-color: #BDC3C7;        /* Silver */
+        --input-bg: #FFFFFF;            /* Blanco */
+
+        /* Variables para colores del pincel (Paleta "Vibrante y Creativa") */
+        --brush-blue: #4FC3F7;
+        --brush-green: #2ECC71;
+        --brush-yellow: #FFC107;
+        --brush-orange: #FF5722;
+        --brush-red: #E74C3C; 
+        --brush-purple: #9C27B0;
+        --brush-pink: #E91E63;
+        --brush-black: #000000;
+        --brush-white: #FFFFFF; /* Para "borrar" */
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h2 {
+      color: var(--primary-color);
+      margin-bottom: 20px;
+    }
+
+    #login, #game {
+      background-color: var(--input-bg);
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 850px; /* Aumentado para acomodar los controles de color */
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
+
+    #username {
+      padding: 12px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      width: calc(100% - 150px);
+      margin-right: 10px;
+      font-size: 1rem;
+      color: var(--text-dark);
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+      margin: 5px;
+    }
+
+    button:hover {
+      background-color: #34495E;
+    }
+
+    button[onclick^="startTimer"] {
+      background-color: var(--accent-color);
+    }
+
+    button[onclick^="startTimer"]:hover {
+      background-color: #16A085;
+    }
+
+    button[onclick="clearCanvas"] {
+        background-color: var(--error-color);
+    }
+    button[onclick="clearCanvas"]:hover {
+        background-color: #C0392B;
+    }
+
+    /* Estilos para los botones de color del pincel */
+    .color-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--border-color);
+      display: inline-block;
+      margin: 3px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .color-button:hover {
+      transform: scale(1.1);
+      border-color: var(--primary-color);
+    }
+
+    /* Estilo para el color de pincel seleccionado */
+    .color-button.selected {
+        border: 2px solid var(--primary-color);
+        transform: scale(1.15);
+        box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.4);
+    }
+
+    #colorPicker {
+        margin-top: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    canvas { border: 2px solid var(--primary-color); display: block; margin-top: 10px; background-color: var(--input-bg); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); border-radius: 5px;}
     #controls, #timerDisplay { margin-top: 10px; }
+    #timerDisplay {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--text-dark);
+        background-color: #ECF0F1;
+        padding: 8px 15px;
+        border-radius: 5px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
@@ -22,6 +158,18 @@
       <button onclick="clearCanvas()">Limpiar</button>
       <span id="timerDisplay"></span>
     </div>
+    
+    <div id="colorPicker">
+        <div class="color-button selected" style="background-color: var(--brush-black);" onclick="selectBrushColor(this, 'var(--brush-black)')"></div>
+        <div class="color-button" style="background-color: var(--brush-blue);" onclick="selectBrushColor(this, 'var(--brush-blue)')"></div>
+        <div class="color-button" style="background-color: var(--brush-green);" onclick="selectBrushColor(this, 'var(--brush-green)')"></div>
+        <div class="color-button" style="background-color: var(--brush-yellow);" onclick="selectBrushColor(this, 'var(--brush-yellow)')"></div>
+        <div class="color-button" style="background-color: var(--brush-orange);" onclick="selectBrushColor(this, 'var(--brush-orange)')"></div>
+        <div class="color-button" style="background-color: var(--brush-red);" onclick="selectBrushColor(this, 'var(--brush-red)')"></div>
+        <div class="color-button" style="background-color: var(--brush-purple);" onclick="selectBrushColor(this, 'var(--brush-purple)')"></div>
+        <div class="color-button" style="background-color: var(--brush-pink);" onclick="selectBrushColor(this, 'var(--brush-pink)')"></div>
+        <div class="color-button" style="background-color: var(--brush-white);" onclick="selectBrushColor(this, 'var(--brush-white)')"></div>
+    </div>
     <canvas id="canvas" width="800" height="500"></canvas>
   </div>
 
@@ -30,6 +178,7 @@
     let socket;
     let painting = false;
     let canvas, ctx;
+    let currentBrushColor = 'black'; // Variable para el color del pincel local
 
     function login() {
       const username = document.getElementById('username').value;
@@ -57,6 +206,13 @@
         document.getElementById('login').style.display = 'none';
         document.getElementById('game').style.display = 'block';
         setupCanvas();
+        // Inicializar el currentBrushColor basado en el botón seleccionado por defecto
+        const initialColorButton = document.querySelector('.color-button.selected');
+        if (initialColorButton) {
+            // Extrae el nombre de la variable CSS del onclick
+            const cssVar = initialColorButton.getAttribute('onclick').match(/'(var\(--brush-[a-z]+\))'/)[1];
+            currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVar.replace('var(', '').replace(')', ''));
+        }
       });
 
       socket.on('draw', ({ x, y }) => draw(x, y, false));
@@ -64,12 +220,25 @@
 
       socket.on('timer-started', ({ duration }) => {
         let timeLeft = duration;
-        const timer = setInterval(() => {
+        const timerDisplay = document.getElementById('timerDisplay');
+        // Usar getComputedStyle para obtener el valor de la variable CSS
+        timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
+        
+        // Limpiar cualquier temporizador previo para evitar duplicados
+        if (window.currentTimerInterval) {
+            clearInterval(window.currentTimerInterval);
+        }
+
+        window.currentTimerInterval = setInterval(() => {
           document.getElementById('timerDisplay').innerText = `⏳ Tiempo restante: ${timeLeft}s`;
           if (--timeLeft < 0) {
-            clearInterval(timer);
+            clearInterval(window.currentTimerInterval);
             document.getElementById('timerDisplay').innerText = '⏰ Tiempo terminado';
+            // Volver al color de texto normal al finalizar
+            timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
             disableDrawing();
+          } else if (timeLeft <= 10) { // Cambiar a rojo en los últimos 10 segundos
+             timerDisplay.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
           }
         }, 1000);
       });
@@ -77,6 +246,7 @@
       socket.on('timer-ended', () => {
         disableDrawing();
         document.getElementById('timerDisplay').innerText = '⏰ Tiempo terminado';
+        document.getElementById('timerDisplay').style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dark');
       });
     }
 
@@ -84,30 +254,71 @@
       canvas = document.getElementById('canvas');
       ctx = canvas.getContext('2d');
 
-      canvas.addEventListener('mousedown', () => painting = true);
-      canvas.addEventListener('mouseup', () => {
-        painting = false;
-        ctx.beginPath();
-      });
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = currentBrushColor; // Establecer el color inicial del pincel para el contexto
 
-      canvas.addEventListener('mousemove', (e) => {
+      canvas.addEventListener('mousedown', startDrawing); // Cambiado para controlar 'painting' y primer punto
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseout', stopDrawing); // Detener si el ratón sale del canvas
+      canvas.addEventListener('mousemove', drawOnCanvas);
+    }
+
+    function startDrawing(e) {
+        painting = true;
+        draw(e.offsetX, e.offsetY, true); // Dibuja el primer punto
+    }
+
+    function stopDrawing() {
+        painting = false;
+        ctx.beginPath(); // Reiniciar el camino para nuevos trazos
+    }
+
+    function drawOnCanvas(e) {
         if (!painting) return;
         const x = e.offsetX;
         const y = e.offsetY;
         draw(x, y, true);
-        socket.emit('draw', { x, y });
-      });
+        // NOTA: Tu código original emitía solo x, y. 
+        // Para que el color se comparta, deberías enviar el color aquí también:
+        // socket.emit('draw', { x, y, color: currentBrushColor }); 
+        // Si no cambias esto, los demás verán tus trazos en negro.
+        socket.emit('draw', { x, y }); 
     }
 
     function draw(x, y, local) {
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = 'black';
+      ctx.strokeStyle = local ? currentBrushColor : 'black'; // Usar currentBrushColor si es local, si no siempre negro
+
       ctx.lineTo(x, y);
       ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(x, y);
     }
+
+    // --- NUEVA FUNCIÓN PARA SELECCIONAR EL COLOR DEL PINCEL ---
+    let lastSelectedColorButton = null; // Mantener un registro del último botón seleccionado
+
+    function selectBrushColor(element, cssVariable) {
+        // Deseleccionar el botón anterior
+        if (lastSelectedColorButton) {
+            lastSelectedColorButton.classList.remove('selected');
+        }
+
+        // Seleccionar el nuevo botón
+        element.classList.add('selected');
+        lastSelectedColorButton = element;
+
+        // Obtener el valor real del color de la variable CSS
+        currentBrushColor = getComputedStyle(document.documentElement).getPropertyValue(cssVariable.replace('var(', '').replace(')', ''));
+        
+        // Actualizar el color del trazo del contexto del canvas
+        if (ctx) {
+            ctx.strokeStyle = currentBrushColor;
+        }
+    }
+    // --- FIN NUEVA FUNCIÓN ---
 
     function startTimer(duration) {
       socket.emit('start-timer', { duration });
@@ -119,10 +330,20 @@
     }
 
     function disableDrawing() {
-      canvas.removeEventListener('mousedown', () => painting = true);
-      canvas.removeEventListener('mouseup', () => painting = false);
-      canvas.removeEventListener('mousemove', () => {});
+      canvas.removeEventListener('mousedown', startDrawing);
+      canvas.removeEventListener('mouseup', stopDrawing);
+      canvas.removeEventListener('mousemove', drawOnCanvas);
+      // Asegurar que también se remueva el listener de mouseout
+      canvas.removeEventListener('mouseout', stopDrawing);
     }
+
+    // Inicializar el botón de color negro como seleccionado al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+        const blackButton = document.querySelector('.color-button[onclick*="--brush-black"]');
+        if (blackButton) {
+            selectBrushColor(blackButton, 'var(--brush-black)');
+        }
+    });
   </script>
 </body>
 </html>
